@@ -1,5 +1,6 @@
 import asyncio
-from bot import create_table, bot, dp
+from bot import bot, dp
+from utils import create_table
 from handlers import router
 
 

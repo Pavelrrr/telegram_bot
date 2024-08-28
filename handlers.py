@@ -2,8 +2,10 @@ from aiogram import types, Router, F
 import logging
 from aiogram.filters.command import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-from bot import dp, update_quiz_index, get_quiz_index
+from bot import dp
 from data.quiz_data import quiz_data
+from utils import update_quiz_index, get_quiz_index, update_quiz_result, get_quiz_result, show_quiz_result
+
 
 router = Router()
 
@@ -14,54 +16,58 @@ def generate_options_keyboard(answer_options, right_answer):
     for option in answer_options:
         builder.add(types.InlineKeyboardButton(
             text=option,
-            callback_data="right_answer" if option == right_answer else "wrong_answer")
+            callback_data=option)
         )
     builder.adjust(1)
     return builder.as_markup()
 
-@router.callback_query(F.data == "right_answer")
-async def right_answer(callback: types.CallbackQuery):
-    logging.info(f"Пользователь {callback.from_user.id} ответил правильно.")
+@router.callback_query()
+async def handle_answer(callback: types.CallbackQuery):
+    user_answer = callback.data  # Получаем текст ответа пользователя
+    user_id = callback.from_user.id
+
+    # Удаляем кнопки из сообщения
     await callback.bot.edit_message_reply_markup(
-        chat_id=callback.from_user.id,
+        chat_id=user_id,
         message_id=callback.message.message_id,
         reply_markup=None
     )
-    await callback.message.answer("Верно!")
-    current_question_index = await get_quiz_index(callback.from_user.id)
+
+    # Выводим ответ пользователя
+    await callback.message.answer(f"Ваш ответ: {user_answer}")
+
+    # Проверяем, является ли ответ правильным
+    current_question_index = await get_quiz_index(user_id)
+    correct_index = quiz_data[current_question_index]['correct_option']
+    correct_answer = quiz_data[current_question_index]['options'][correct_index]
+    score =await get_quiz_result(user_id) or 0  # Инициализируем счет
+    if user_answer == correct_answer:
+        await callback.message.answer("Верно!")
+        await callback.message.answer("---")  # Пустая строка
+        score += 1  # Увеличиваем счет за правильный ответ
+    else:
+        await callback.message.answer(f"Неправильно. Правильный ответ: {correct_answer}")
+        await callback.message.answer("---")  # Пустая строка
+
+    # Обновляем индекс вопроса
     current_question_index += 1
-    await update_quiz_index(callback.from_user.id, current_question_index)
+    await update_quiz_index(user_id, current_question_index)
 
     if current_question_index < len(quiz_data):
-        await get_question(callback.message, callback.from_user.id)
+        await get_question(callback.message, user_id)
     else:
+        await update_quiz_result(user_id, score)  # Сохраняем результат
         await callback.message.answer("Это был последний вопрос. Квиз завершен!")
-
-@router.callback_query(F.data == "wrong_answer")
-async def wrong_answer(callback: types.CallbackQuery):
-    logging.info(f"Пользователь {callback.from_user.id} ответил неправильно.")
-    await callback.bot.edit_message_reply_markup(
-        chat_id=callback.from_user.id,
-        message_id=callback.message.message_id,
-        reply_markup=None
-    )
-    current_question_index = await get_quiz_index(callback.from_user.id)
-    correct_option = quiz_data[current_question_index]['correct_option']
-    await callback.message.answer(f"Неправильно. Правильный ответ: {quiz_data[current_question_index]['options'][correct_option]}")
-    current_question_index += 1
-    await update_quiz_index(callback.from_user.id, current_question_index)
-
-    if current_question_index < len(quiz_data):
-        await get_question(callback.message, callback.from_user.id)
-    else:
-        await callback.message.answer("Это был последний вопрос. Квиз завершен!")
-
+        await show_quiz_result(callback.message, user_id)  # Показываем результат
+        
 @router.message(Command("start"))
 async def cmd_start(message: types.Message):
     logging.info(f"Пользователь {message.from_user.id} начал игру.")
     builder = ReplyKeyboardBuilder()
     builder.add(types.KeyboardButton(text="Начать игру"))
     await message.answer("Добро пожаловать в квиз!", reply_markup=builder.as_markup(resize_keyboard=True))
+
+
 
 async def get_question(message, user_id):
     current_question_index = await get_quiz_index(user_id)
@@ -71,10 +77,10 @@ async def get_question(message, user_id):
     await message.answer(f"{quiz_data[current_question_index]['question']}", reply_markup=kb)
 
 @router.message(F.text=="Начать игру")
-@router.message(Command("quiz"))
 async def cmd_quiz(message: types.Message):
     await message.answer(f"Давайте начнем квиз!")
     await new_quiz(message)
+
 
 async def new_quiz(message):
     user_id = message.from_user.id
