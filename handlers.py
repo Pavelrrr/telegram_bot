@@ -1,9 +1,12 @@
-from aiogram import types
+from aiogram import types, Router, F
+import logging
 from aiogram.filters.command import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-from aiogram import F
 from bot import dp, update_quiz_index, get_quiz_index
-from quiz_data import quiz_data
+from data.quiz_data import quiz_data
+
+router = Router()
+
 
 def generate_options_keyboard(answer_options, right_answer):
     logging.info("Генерация клавиатуры с вариантами ответов...")
@@ -16,7 +19,7 @@ def generate_options_keyboard(answer_options, right_answer):
     builder.adjust(1)
     return builder.as_markup()
 
-@dp.callback_query(F.data == "right_answer")
+@router.callback_query(F.data == "right_answer")
 async def right_answer(callback: types.CallbackQuery):
     logging.info(f"Пользователь {callback.from_user.id} ответил правильно.")
     await callback.bot.edit_message_reply_markup(
@@ -34,7 +37,7 @@ async def right_answer(callback: types.CallbackQuery):
     else:
         await callback.message.answer("Это был последний вопрос. Квиз завершен!")
 
-@dp.callback_query(F.data == "wrong_answer")
+@router.callback_query(F.data == "wrong_answer")
 async def wrong_answer(callback: types.CallbackQuery):
     logging.info(f"Пользователь {callback.from_user.id} ответил неправильно.")
     await callback.bot.edit_message_reply_markup(
@@ -53,7 +56,7 @@ async def wrong_answer(callback: types.CallbackQuery):
     else:
         await callback.message.answer("Это был последний вопрос. Квиз завершен!")
 
-@dp.message(Command("start"))
+@router.message(Command("start"))
 async def cmd_start(message: types.Message):
     logging.info(f"Пользователь {message.from_user.id} начал игру.")
     builder = ReplyKeyboardBuilder()
@@ -67,8 +70,8 @@ async def get_question(message, user_id):
     kb = generate_options_keyboard(opts, opts[correct_index])
     await message.answer(f"{quiz_data[current_question_index]['question']}", reply_markup=kb)
 
-@dp.message(F.text=="Начать игру")
-@dp.message(Command("quiz"))
+@router.message(F.text=="Начать игру")
+@router.message(Command("quiz"))
 async def cmd_quiz(message: types.Message):
     await message.answer(f"Давайте начнем квиз!")
     await new_quiz(message)
