@@ -5,6 +5,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from data.quiz_data import quiz_data
 from bot import dp
 
+
 DB_NAME = 'quiz_bot.db'
 
 async def create_table():
