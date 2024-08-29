@@ -40,11 +40,13 @@ async def handle_answer(callback: types.CallbackQuery):
     current_question_index = await get_quiz_index(user_id)
     correct_index = quiz_data[current_question_index]['correct_option']
     correct_answer = quiz_data[current_question_index]['options'][correct_index]
-    score =await get_quiz_result(user_id) or 0  # Инициализируем счет
+    #score = await get_quiz_result(user_id) or 0  # Инициализируем счет
     if user_answer == correct_answer:
         await callback.message.answer("Верно!")
         await callback.message.answer("---")  # Пустая строка
-        score += 1  # Увеличиваем счет за правильный ответ
+        score = await get_quiz_result(user_id) or 0
+        await update_quiz_result(user_id, score + 1)
+        logging.info(f'Текущий результат {score}')
     else:
         await callback.message.answer(f"Неправильно. Правильный ответ: {correct_answer}")
         await callback.message.answer("---")  # Пустая строка
@@ -56,7 +58,7 @@ async def handle_answer(callback: types.CallbackQuery):
     if current_question_index < len(quiz_data):
         await get_question(callback.message, user_id)
     else:
-        await update_quiz_result(user_id, score)  # Сохраняем результат
+        #await update_quiz_result(user_id, score)  # Сохраняем результат
         await callback.message.answer("Это был последний вопрос. Квиз завершен!")
         await show_quiz_result(callback.message, user_id)  # Показываем результат
         

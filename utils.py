@@ -67,7 +67,7 @@ async def new_quiz(message):
     # сбрасываем значение текущего индекса вопроса квиза в 0
     current_question_index = 0
     await update_quiz_index(user_id, current_question_index)
-
+    await update_quiz_result(user_id, 0)
     # запрашиваем новый вопрос для квиза
     await get_question(message, user_id)
 
