@@ -41,12 +41,16 @@ async def handle_answer(callback: types.CallbackQuery):
     correct_answer = quiz_data[current_question_index]['options'][correct_index]
 
     if user_answer == correct_answer:
-        await callback.message.answer("Верно!")
-        score = await get_quiz_result(user_id) + 1
+        await callback.message.answer("🟢 Верно!")
+        current_score = await get_quiz_result(user_id)
+        if current_score is None:
+            score = 1  # Если результата нет, начинаем со счета 1
+        else:
+            score = current_score + 1
         await update_quiz_result(user_id, score)
         logging.info(f'Текущий результат {score}')
     else:
-        await callback.message.answer(f"Неправильно. Правильный ответ: {correct_answer}")
+        await callback.message.answer(f"🔴 Неправильно. Правильный ответ: {correct_answer}")
 
     # Обновляем индекс вопроса
     current_question_index += 1
@@ -55,7 +59,7 @@ async def handle_answer(callback: types.CallbackQuery):
     if current_question_index < len(quiz_data):
         await get_question(callback.message, user_id)
     else:
-        await callback.message.answer("Это был последний вопрос. Квиз завершен!")
+        await callback.message.answer("Это был последний вопрос. Квиз завершен!🎉")
         await show_quiz_result(callback.message, user_id)  # Показываем результат
         await update_quiz_result(user_id, 0)
         builder = ReplyKeyboardBuilder()
